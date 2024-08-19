@@ -388,7 +388,18 @@ function _submitRecord(survey) {
             }
             return record;
         })
-        .then((record) => connection.uploadRecord(survey, record))
+        .then((record) => {
+            // Captura y registro de los datos del formulario
+            console.log('Datos del formulario:', {
+                enketoId: record.enketoId,
+                xml: record.xml,
+                files: record.files,
+                instanceId: record.instanceId,
+                deprecatedId: record.deprecatedId,
+            });
+
+            return connection.uploadRecord(survey, record);
+        })
         .then((result) => {
             result = result || {};
             level = 'success';
@@ -657,6 +668,11 @@ function _autoSaveRecord() {
                           }
                 ),
             };
+            // Captura y registro de los datos del formulario
+            console.log('Datos del formulario:', {
+                xml: record.xml,
+                files: record.files,
+            });
 
             return records.updateAutoSavedRecord(record);
         })

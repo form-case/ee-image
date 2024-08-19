@@ -8,6 +8,9 @@ import sniffer from './sniffer';
 import { t } from './translator';
 import encryptor from './encryptor';
 
+//*f Importación de PouchDB
+import PouchDB from 'pouchdb';
+
 const parser = new DOMParser();
 
 /**
@@ -32,6 +35,9 @@ let available = false;
 
 const databaseName = 'enketo';
 const version = 4;
+
+//*f Creación de instancia de PouchDB
+const pouchdb = new PouchDB('enketo_pouchdb');
 
 const REMOVE_RECORD_NAME_UNIQUENESS_VERSION = 4;
 
@@ -365,7 +371,18 @@ const surveyStore = {
                         .then(() => storedSurvey)
                 );
             })
-            .then(_deserializeSurvey);
+            .then(_deserializeSurvey)
+            .then((storedSurvey) => {
+                //*f Guardar en PouchDB
+                return pouchdb.put({
+                    _id: survey.enketoId,
+                    ...serializedSurvey
+                }).then(() => {
+                    //*f Mostrar en consola los datos guardados
+                    console.log('Survey saved to PouchDB:', storedSurvey);
+                    return storedSurvey;
+                });
+            });
     },
     /**
      * Updates a single survey's form HTML and XML model as well any external resources belonging to the form
@@ -638,6 +655,17 @@ const recordStore = {
         // build array of file keys
         fileKeys = record.files.map((file) => file.name);
 
+        const newRecord = {
+            instanceId: record.instanceId,
+            enketoId: record.enketoId,
+            name: record.name,
+            xml: record.xml,
+            files: fileKeys,
+            created: new Date().getTime(),
+            updated: new Date().getTime(),
+            draft: record.draft,
+        };
+
         return server.records
             .add({
                 instanceId: record.instanceId,
@@ -670,11 +698,18 @@ const recordStore = {
 
                             return Promise.resolve();
                         }),
-                    Promise.resolve()
+                        Promise.resolve()
+                    )
                 )
-            )
-            .then(() => record);
-    },
+                .then(() => pouchdb.put({
+                    _id: record.instanceId,
+                    ...newRecord
+                }))
+                .then(() => {
+                    console.log('Record saved to PouchDB:', newRecord);
+                    return record;
+                });
+        },
     /**
      * Updates (or creates) a single record (XML + files)
      *
